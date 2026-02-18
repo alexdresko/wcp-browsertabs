@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "WcpBrowserTabs (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "WcpBrowserTabs (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
