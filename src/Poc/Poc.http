@@ -4,3 +4,8 @@ GET {{Poc_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+GET {{Poc_HostAddress}}/browser-tabs/
+Accept: application/json
+
+###
