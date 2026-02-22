@@ -1,5 +1,26 @@
 # Project Guidelines
 
+## Application Overview
+
+This repository contains a Windows Command Palette extension named **Browser Tabs**.
+
+- It discovers open browser tabs from supported browsers (currently Chrome and Edge).
+- It shows those tabs in Command Palette so users can search and switch quickly.
+- It is implemented as a COM-based Windows app extension.
+
+## Code Location
+
+- Main extension solution: `src/extension/WcpBrowserTabs/WcpBrowserTabs.sln`
+- Extension project (core feature code): `src/extension/WcpBrowserTabs/WcpBrowserTabs/`
+- Browser tab discovery and activation:
+  - `src/extension/WcpBrowserTabs/WcpBrowserTabs/BrowserTabDiscoveryService.cs`
+  - `src/extension/WcpBrowserTabs/WcpBrowserTabs/BrowserWindowActivator.cs`
+  - `src/extension/WcpBrowserTabs/WcpBrowserTabs/ActivateBrowserTabCommand.cs`
+- Command Palette provider/page wiring:
+  - `src/extension/WcpBrowserTabs/WcpBrowserTabs/WcpBrowserTabsCommandsProvider.cs`
+  - `src/extension/WcpBrowserTabs/WcpBrowserTabs/Pages/WcpBrowserTabsPage.cs`
+- Prototype API project: `src/Poc/`
+
 ## Commit Conventions
 
 All commits MUST follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
