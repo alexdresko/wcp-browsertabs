@@ -258,4 +258,3 @@ internal readonly record struct TabActivationResult(bool Success, string ErrorMe
 
     public static TabActivationResult Failure(string errorMessage) => new(false, errorMessage);
 }
-

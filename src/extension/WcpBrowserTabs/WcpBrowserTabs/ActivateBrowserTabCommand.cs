@@ -4,6 +4,7 @@
 
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using System;
 
 namespace WcpBrowserTabs;
 
@@ -20,15 +21,14 @@ internal sealed partial class ActivateBrowserTabCommand : InvokableCommand
 
     public override ICommandResult Invoke()
     {
-        if (!BrowserWindowActivator.TryBringToFront(_tab.WindowHandle))
-        {
-            return Fail("Could not activate the browser window.");
-        }
+        _ = BrowserWindowActivator.TryBringToFront(_tab.WindowHandle);
 
         var activationResult = BrowserTabDiscoveryService.TryActivateTab(_tab);
         if (!activationResult.Success)
         {
-            return Fail(activationResult.ErrorMessage);
+            return Fail(string.IsNullOrWhiteSpace(activationResult.ErrorMessage)
+                ? "Could not activate the browser tab."
+                : activationResult.ErrorMessage);
         }
 
         return CommandResult.Dismiss();
