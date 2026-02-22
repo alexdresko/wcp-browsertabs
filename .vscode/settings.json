@@ -1,0 +1,3 @@
+{
+    "gitlens.ai.generateCommitMessage.customInstructions": "Use \"conventional commits\". Include a bulleted summary of changes in the body. "
+}
