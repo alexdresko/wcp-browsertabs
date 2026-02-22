@@ -36,13 +36,24 @@ try {
     & $install
 }
 catch {
-    if ($_.Exception.Message -notlike "*0x80073CFB*") { throw }
+    $message = $_.Exception.Message
+    $isSameVersionConflict = $message -like "*0x80073CFB*"
+    $isHigherVersionInstalled = $message -like "*0x80073D06*"
 
-    Write-Host "Detected same-version package conflict. Removing existing WcpBrowserTabs package(s) for current user and retrying."
+    if (-not ($isSameVersionConflict -or $isHigherVersionInstalled)) { throw }
+
+    if ($isSameVersionConflict) {
+        Write-Host "Detected same-version package conflict. Removing existing WcpBrowserTabs package(s) for current user and retrying."
+    }
+    else {
+        Write-Host "Detected higher installed package version. Removing existing WcpBrowserTabs package(s) for current user and retrying."
+    }
+
     $existing = Get-AppxPackage -Name WcpBrowserTabs -ErrorAction SilentlyContinue
     foreach ($app in $existing) {
         Remove-AppxPackage -Package $app.PackageFullName -ErrorAction Stop
     }
+
     & $install
 }
 

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$WorkspaceFolder
+    [string]$WorkspaceFolder,
+    [switch]$UseManifestVersion
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,21 +24,34 @@ if ($null -eq $signingCert) {
     throw "Signing certificate private key not found in Cert:\CurrentUser\My for thumbprint $thumbprint. Import DevCert\WcpBrowserTabsDev.pfx into CurrentUser\Personal, then retry."
 }
 
-$utcNow = [DateTime]::UtcNow
-$build = [int]($utcNow.Date - [DateTime]"2024-01-01").TotalDays
-$revision = [int]($utcNow.TimeOfDay.TotalSeconds / 2)
-$appxVersion = "0.0.$build.$revision"
-Write-Host "Using package version: $appxVersion"
-
 $manifestOriginal = Get-Content -Path $manifestPath -Raw
-$manifestUpdated = $manifestOriginal -replace '(?s)(<Identity\s+[^>]*?Version=")[^"]+(")', ('${1}' + $appxVersion + '${2}')
+$versionMatch = [regex]::Match($manifestOriginal, '<Identity\s+[^>]*?Version="([^"]+)"')
+if (-not $versionMatch.Success) {
+    throw "Failed to read package version from $manifestPath"
+}
 
-if ($manifestUpdated -eq $manifestOriginal) {
-    throw "Failed to update package version in $manifestPath"
+$manifestUpdated = $manifestOriginal
+if ($UseManifestVersion) {
+    $appxVersion = $versionMatch.Groups[1].Value
+    Write-Host "Using package version from manifest: $appxVersion"
+}
+else {
+    $utcNow = [DateTime]::UtcNow
+    $build = [int]($utcNow.Date - [DateTime]"2024-01-01").TotalDays
+    $revision = [int]($utcNow.TimeOfDay.TotalSeconds / 2)
+    $appxVersion = "0.0.$build.$revision"
+    Write-Host "Using auto-generated package version: $appxVersion"
+
+    $manifestUpdated = $manifestOriginal -replace '(?s)(<Identity\s+[^>]*?Version=")[^"]+(")', ('${1}' + $appxVersion + '${2}')
+    if ($manifestUpdated -eq $manifestOriginal) {
+        throw "Failed to update package version in $manifestPath"
+    }
 }
 
 try {
-    Set-Content -Path $manifestPath -Value $manifestUpdated -Encoding utf8
+    if (-not $UseManifestVersion) {
+        Set-Content -Path $manifestPath -Value $manifestUpdated -Encoding utf8
+    }
 
     dotnet msbuild $project `
         /t:Restore,Build `
@@ -55,5 +69,7 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
-    Set-Content -Path $manifestPath -Value $manifestOriginal -Encoding utf8
+    if (-not $UseManifestVersion) {
+        Set-Content -Path $manifestPath -Value $manifestOriginal -Encoding utf8
+    }
 }
