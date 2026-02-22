@@ -1,2 +1,49 @@
-bin
-obj
+# Build artifacts
+**/[Bb]in/
+**/[Oo]bj/
+**/[Dd]ebug/
+**/[Rr]elease/
+**/publish/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+# Visual Studio / IDE files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# VS Code (allow shareable workspace config files)
+.vscode/*
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# NuGet packages and local caches
+*.nupkg
+*.snupkg
+packages/
+
+# MSIX / AppX packaging outputs
+**/AppPackages/
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.appxupload
+*.msixupload
+
+# Local signing certificates and keys
+**/DevCert/
+*.pfx
+*.p12
+*.snk

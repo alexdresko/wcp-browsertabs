@@ -1,0 +1,107 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CmdPal: Package Extension (x64)",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference = \"Stop\"; $projectRoot = Join-Path \"${workspaceFolder}\" \"src/extension/WcpBrowserTabs/WcpBrowserTabs\"; $project = Join-Path $projectRoot \"WcpBrowserTabs.csproj\"; $certPath = Join-Path $projectRoot \"DevCert\\WcpBrowserTabsDev.cer\"; if (-not (Test-Path $project)) { throw \"Project file not found: $project\" }; if (-not (Test-Path $certPath)) { throw \"Signing certificate not found: $certPath\" }; $thumbprint = (Get-PfxCertificate -FilePath $certPath).Thumbprint; $signingCert = Get-ChildItem Cert:\\CurrentUser\\My | Where-Object { $_.Thumbprint -eq $thumbprint -and $_.HasPrivateKey } | Select-Object -First 1; if ($null -eq $signingCert) { throw \"Signing certificate private key not found in Cert:\\CurrentUser\\My for thumbprint $thumbprint. Import DevCert\\WcpBrowserTabsDev.pfx into CurrentUser\\Personal, then retry.\" }; dotnet msbuild $project /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true /p:UapAppxPackageBuildMode=SideloadOnly /p:AppxBundle=Never /p:PublishSingleFile=false /p:AppxPackageDir=AppPackages\\ /p:AppxPackageSigningEnabled=true \"/p:PackageCertificateThumbprint=$thumbprint\" /p:PackageCertificateStoreName=My; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CmdPal: Trust Latest Dev Certificate",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference = \"Stop\"; $projectRoot = Join-Path \"${workspaceFolder}\" \"src/extension/WcpBrowserTabs/WcpBrowserTabs\"; $packageRoot = Join-Path $projectRoot \"AppPackages\"; $cert = $null; if (Test-Path $packageRoot) { $cert = Get-ChildItem -Path $packageRoot -Recurse -File -Filter *.cer | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }; if ($null -eq $cert) { $devCertRoot = Join-Path $projectRoot \"DevCert\"; if (Test-Path $devCertRoot) { $cert = Get-ChildItem -Path $devCertRoot -Recurse -File -Filter *.cer | Sort-Object LastWriteTime -Descending | Select-Object -First 1 } }; if ($null -eq $cert) { Write-Host \"No .cer file found under $packageRoot or $devCertRoot. Skipping trust step.\"; exit 0 }; $thumbprint = (Get-PfxCertificate -FilePath $cert.FullName).Thumbprint; $lmTrusted = Get-ChildItem Cert:\\LocalMachine\\TrustedPeople -ErrorAction SilentlyContinue | Where-Object { $_.Thumbprint -eq $thumbprint } | Select-Object -First 1; $lmRoot = Get-ChildItem Cert:\\LocalMachine\\Root -ErrorAction SilentlyContinue | Where-Object { $_.Thumbprint -eq $thumbprint } | Select-Object -First 1; if ($null -eq $lmTrusted -or $null -eq $lmRoot) { $escapedCertPath = $cert.FullName.Replace(\"'\", \"''\"); $elevatedCommand = \"Import-Certificate -FilePath '$escapedCertPath' -CertStoreLocation 'Cert:\\LocalMachine\\TrustedPeople' | Out-Null; Import-Certificate -FilePath '$escapedCertPath' -CertStoreLocation 'Cert:\\LocalMachine\\Root' | Out-Null\"; $p = Start-Process -FilePath powershell -Verb RunAs -PassThru -Wait -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $elevatedCommand); if ($p.ExitCode -ne 0) { throw \"Failed to import certificate into LocalMachine stores (exit code $($p.ExitCode)).\" } }; Import-Certificate -FilePath $cert.FullName -CertStoreLocation \"Cert:\\CurrentUser\\TrustedPeople\" | Out-Null; Write-Host \"Trusted certificate: $($cert.FullName) (thumbprint: $thumbprint)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CmdPal: Install Latest Package",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference = \"Stop\"; $packageRoot = Join-Path \"${workspaceFolder}\" \"src/extension/WcpBrowserTabs/WcpBrowserTabs/AppPackages\"; if (-not (Test-Path $packageRoot)) { throw \"Package output folder not found: $packageRoot. Run package task first.\" }; $package = Get-ChildItem -Path $packageRoot -Recurse -File | Where-Object { $_.Extension -in \".msix\", \".appx\", \".msixbundle\", \".appxbundle\" -and $_.FullName -notlike \"*\\Dependencies\\*\" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($null -eq $package) { throw \"No main package found under $packageRoot. Run package task first.\" }; $sig = Get-AuthenticodeSignature -FilePath $package.FullName; if ($sig.Status -ne \"Valid\") { throw \"Package signature is not valid (status: $($sig.Status)): $($package.FullName)\" }; Add-AppxPackage -Path $package.FullName -ForceApplicationShutdown -ErrorAction Stop; Write-Host \"Installed package: $($package.FullName)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CmdPal: Package + Install (x64)",
+      "dependsOn": [
+        "CmdPal: Package Extension (x64)",
+        "CmdPal: Trust Latest Dev Certificate",
+        "CmdPal: Install Latest Package"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CmdPal: Reload Reminder",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Write-Host \"Open Command Palette and run 'Reload' (subtitle: 'Reload Command Palette Extension').\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    }
+  ]
+}
