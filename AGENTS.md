@@ -8,6 +8,11 @@ This repository contains a Windows Command Palette extension named **Browser Tab
 - It shows those tabs in Command Palette so users can search and switch quickly.
 - It is implemented as a COM-based Windows app extension.
 
+## Documentation
+
+- [Command Palette Overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/overview)
+- [Command Palette Extensibility](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview)
+
 ## Code Location
 
 - Main extension solution: `src/extension/WcpBrowserTabs/WcpBrowserTabs.sln`
