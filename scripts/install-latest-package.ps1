@@ -58,3 +58,13 @@ catch {
 }
 
 Write-Host "Installed package: $($package.FullName)"
+
+$cleanupScript = Join-Path $WorkspaceFolder "scripts\clean-cmdpal-browser-tabs-entries.ps1"
+if (Test-Path $cleanupScript) {
+    try {
+        & $cleanupScript | Out-Host
+    }
+    catch {
+        Write-Warning "CmdPal Browser Tabs cleanup failed (non-fatal): $($_.Exception.Message)"
+    }
+}
