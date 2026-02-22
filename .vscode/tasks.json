@@ -51,6 +51,32 @@
       }
     },
     {
+      "label": "CmdPal: Package Store Bundle (x64+ARM64)",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/package-store-bundle.ps1",
+        "-WorkspaceFolder",
+        "${workspaceFolder}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
       "label": "CmdPal: Install Latest Package",
       "type": "process",
       "command": "powershell",
