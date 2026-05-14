@@ -27,6 +27,7 @@ BenchmarkDotNet.Artifacts/
 *.log
 *.tmp
 *.temp
+*.lscache
 
 # NuGet packages and local caches
 *.nupkg

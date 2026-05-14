@@ -113,6 +113,17 @@ function Read-ProjectProperty {
     return ($values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
 }
 
+function ConvertTo-MSBuildPropertyValue {
+    param(
+        [string]$Value
+    )
+
+    return $Value.
+        Replace("%", "%25").
+        Replace(";", "%3B").
+        Replace(",", "%2C")
+}
+
 $projectRoot = Join-Path $WorkspaceFolder "src/extension/WcpBrowserTabs/WcpBrowserTabs"
 $projectPath = Join-Path $projectRoot "WcpBrowserTabs.csproj"
 $packageRoot = Join-Path $projectRoot "AppPackages"
@@ -158,11 +169,12 @@ $commonMsbuildArgs = @(
     "/p:UapAppxPackageBuildMode=StoreUpload",
     "/p:AppxBundle=Never",
     "/p:PublishSingleFile=false",
+    "/p:PublishTrimmed=false",
     "/p:AppxPackageDir=AppPackages\",
     "/p:AppxPackageSigningEnabled=false",
-    "/p:AppxPackageVersion=$resolvedVersion",
-    "/p:AppxPackageIdentityName=$resolvedIdentityName",
-    "/p:AppxPackagePublisher=$resolvedPublisher"
+    "/p:AppxPackageVersion=$(ConvertTo-MSBuildPropertyValue $resolvedVersion)",
+    "/p:AppxPackageIdentityName=$(ConvertTo-MSBuildPropertyValue $resolvedIdentityName)",
+    "/p:AppxPackagePublisher=$(ConvertTo-MSBuildPropertyValue $resolvedPublisher)"
 )
 
 if (-not $SkipBuild) {

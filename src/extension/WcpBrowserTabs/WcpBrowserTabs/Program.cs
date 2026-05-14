@@ -6,8 +6,8 @@ using Microsoft.CommandPalette.Extensions;
 using Shmuelie.WinRTServer;
 using Shmuelie.WinRTServer.CsWinRT;
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace WcpBrowserTabs;
 
@@ -37,7 +37,26 @@ public class Program
         }
         else
         {
-            Console.WriteLine("Not being launched as a Extension... exiting.");
+            ShowManualLaunchMessage();
         }
+    }
+
+    private static void ShowManualLaunchMessage()
+    {
+        _ = MessageBox(
+            nint.Zero,
+            "Browser Tabs is a PowerToys Command Palette extension. Install and enable PowerToys Command Palette, then open Browser Tabs from Command Palette.",
+            "Browser Tabs",
+            MessageBoxOptions.Ok | MessageBoxOptions.IconInformation);
+    }
+
+    [DllImport("user32.dll", EntryPoint = "MessageBoxW", CharSet = CharSet.Unicode)]
+    private static extern int MessageBox(nint hWnd, string text, string caption, MessageBoxOptions options);
+
+    [Flags]
+    private enum MessageBoxOptions : uint
+    {
+        Ok = 0x00000000,
+        IconInformation = 0x00000040,
     }
 }

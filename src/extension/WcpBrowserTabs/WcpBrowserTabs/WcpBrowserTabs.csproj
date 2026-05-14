@@ -3,59 +3,33 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>WcpBrowserTabs</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-
     <WindowsSdkPackageVersion>10.0.22621.57</WindowsSdkPackageVersion>
     <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <EnableMsixTooling>true</EnableMsixTooling>
     <!-- Replace these with your Partner Center package identity values before Store submission. -->
-    <AppxPackageIdentityName>WcpBrowserTabs</AppxPackageIdentityName>
-    <AppxPackagePublisher>CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US</AppxPackagePublisher>
-    <AppxPackageVersion>0.0.1.0</AppxPackageVersion>
+    <AppxPackageIdentityName>19990www.AlexDresko.com.wcp-browsertabs</AppxPackageIdentityName>
+    <AppxPackagePublisher>CN=5588CB4A-B2FA-4850-8110-541E46C43DE2</AppxPackagePublisher>
+    <AppxPackageVersion>0.0.2.0</AppxPackageVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
     <Content Include="Assets\**\*.png" />
   </ItemGroup>
-
   <Target Name="PrepareAssets" BeforeTargets="BeforeBuild">
     <!-- Store validation expects base asset filenames even when scale assets are the source of truth. -->
-    <Copy
-      Condition="Exists('$(MSBuildProjectDirectory)\Assets\Square150x150Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Square150x150Logo.png')"
-      SourceFiles="$(MSBuildProjectDirectory)\Assets\Square150x150Logo.scale-200.png"
-      DestinationFiles="$(MSBuildProjectDirectory)\Assets\Square150x150Logo.png"
-      SkipUnchangedFiles="true" />
-    <Copy
-      Condition="Exists('$(MSBuildProjectDirectory)\Assets\Square44x44Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Square44x44Logo.png')"
-      SourceFiles="$(MSBuildProjectDirectory)\Assets\Square44x44Logo.scale-200.png"
-      DestinationFiles="$(MSBuildProjectDirectory)\Assets\Square44x44Logo.png"
-      SkipUnchangedFiles="true" />
-    <Copy
-      Condition="Exists('$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.png')"
-      SourceFiles="$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.scale-200.png"
-      DestinationFiles="$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.png"
-      SkipUnchangedFiles="true" />
-    <Copy
-      Condition="Exists('$(MSBuildProjectDirectory)\Assets\SplashScreen.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\SplashScreen.png')"
-      SourceFiles="$(MSBuildProjectDirectory)\Assets\SplashScreen.scale-200.png"
-      DestinationFiles="$(MSBuildProjectDirectory)\Assets\SplashScreen.png"
-      SkipUnchangedFiles="true" />
-    <Copy
-      Condition="Exists('$(MSBuildProjectDirectory)\Assets\StoreLogo.scale-100.png') and !Exists('$(MSBuildProjectDirectory)\Assets\StoreLogo.png')"
-      SourceFiles="$(MSBuildProjectDirectory)\Assets\StoreLogo.scale-100.png"
-      DestinationFiles="$(MSBuildProjectDirectory)\Assets\StoreLogo.png"
-      SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(MSBuildProjectDirectory)\Assets\Square150x150Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Square150x150Logo.png')" SourceFiles="$(MSBuildProjectDirectory)\Assets\Square150x150Logo.scale-200.png" DestinationFiles="$(MSBuildProjectDirectory)\Assets\Square150x150Logo.png" SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(MSBuildProjectDirectory)\Assets\Square44x44Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Square44x44Logo.png')" SourceFiles="$(MSBuildProjectDirectory)\Assets\Square44x44Logo.scale-200.png" DestinationFiles="$(MSBuildProjectDirectory)\Assets\Square44x44Logo.png" SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.png')" SourceFiles="$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.scale-200.png" DestinationFiles="$(MSBuildProjectDirectory)\Assets\Wide310x150Logo.png" SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(MSBuildProjectDirectory)\Assets\SplashScreen.scale-200.png') and !Exists('$(MSBuildProjectDirectory)\Assets\SplashScreen.png')" SourceFiles="$(MSBuildProjectDirectory)\Assets\SplashScreen.scale-200.png" DestinationFiles="$(MSBuildProjectDirectory)\Assets\SplashScreen.png" SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(MSBuildProjectDirectory)\Assets\StoreLogo.scale-100.png') and !Exists('$(MSBuildProjectDirectory)\Assets\StoreLogo.png')" SourceFiles="$(MSBuildProjectDirectory)\Assets\StoreLogo.scale-100.png" DestinationFiles="$(MSBuildProjectDirectory)\Assets\StoreLogo.png" SkipUnchangedFiles="true" />
   </Target>
-
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
-
   <!--
     Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
     Tools extension to be activated for this project even if the Windows App SDK Nuget
@@ -73,7 +47,6 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Shmuelie.WinRTServer" />
   </ItemGroup>
-
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if
@@ -82,37 +55,28 @@
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
-
   <PropertyGroup>
     <PublishSingleFile>true</PublishSingleFile>
     <IsAotCompatible>true</IsAotCompatible>
-
     <CsWinRTAotOptimizerEnabled>true</CsWinRTAotOptimizerEnabled>
     <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
     <!-- Suppress DynamicallyAccessedMemberTypes.PublicParameterlessConstructor in fallback code path of Windows SDK projection -->
     <WarningsNotAsErrors>IL2081;$(WarningsNotAsErrors)</WarningsNotAsErrors>
-
     <!-- When publishing trimmed, make sure to treat trimming warnings as build errors -->
     <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
-
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <!-- In Debug builds, trimming is disabled by default, but all the trim & 
          AOT warnings are enabled. This gives debug builds a tighter inner loop,
          while at least warning about future trim violations -->
     <PublishTrimmed>false</PublishTrimmed>
-    
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)'!='Debug'">
     <!-- In Release builds, trimming is enabled by default. 
          feel free to disable this if needed -->
     <PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
-
-
 </Project>
