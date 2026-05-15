@@ -78,18 +78,18 @@ jobs:
         shell: pwsh
         run: |
           $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\release"
-          $packageArgs = @(
-            "-WorkspaceFolder", "${{ github.workspace }}",
-            "-Version", "${{ steps.version.outputs.appx_version }}",
-            "-OutputFolder", $outputFolder
-          )
+          $packageArgs = @{
+            WorkspaceFolder = "${{ github.workspace }}"
+            Version = "${{ steps.version.outputs.appx_version }}"
+            OutputFolder = $outputFolder
+          }
 
           if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_IDENTITY_NAME)) {
-            $packageArgs += @("-IdentityName", $env:APPX_PACKAGE_IDENTITY_NAME)
+            $packageArgs.IdentityName = $env:APPX_PACKAGE_IDENTITY_NAME
           }
 
           if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_PUBLISHER)) {
-            $packageArgs += @("-Publisher", $env:APPX_PACKAGE_PUBLISHER)
+            $packageArgs.Publisher = $env:APPX_PACKAGE_PUBLISHER
           }
 
           & ./scripts/package-store-bundle.ps1 @packageArgs
