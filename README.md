@@ -81,4 +81,5 @@ MSIX package version: 0.0.3.0
 ```
 
 Pull request builds create validation-only Store bundles with CI run-number
-versions. Submit Store packages from GitHub Release artifacts, not PR artifacts.
+versions. Do not submit PR artifacts to Partner Center; submit Store packages
+from GitHub Release artifacts instead.
