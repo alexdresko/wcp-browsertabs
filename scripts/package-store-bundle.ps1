@@ -364,8 +364,13 @@ if (-not $OutputFolder) {
 
 New-Item -ItemType Directory -Path $OutputFolder -Force | Out-Null
 
+$restoreMsbuildArgs = @(
+    "/t:Restore",
+    "/p:Configuration=$Configuration"
+)
+
 $commonMsbuildArgs = @(
-    "/t:Restore,Build",
+    "/t:Build",
     "/p:Configuration=$Configuration",
     "/p:GenerateAppxPackageOnBuild=true",
     "/p:UapAppxPackageBuildMode=StoreUpload",
@@ -381,6 +386,7 @@ $commonMsbuildArgs = @(
 
 try {
     if (-not $SkipBuild) {
+        Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments $restoreMsbuildArgs -DryRunMode:$DryRun
         Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=x64") -DryRunMode:$DryRun
         Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=ARM64") -DryRunMode:$DryRun
     }
