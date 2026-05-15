@@ -366,7 +366,8 @@ New-Item -ItemType Directory -Path $OutputFolder -Force | Out-Null
 
 $restoreMsbuildArgs = @(
     "/t:Restore",
-    "/p:Configuration=$Configuration"
+    "/p:Configuration=$Configuration",
+    "/p:PublishReadyToRun=false"
 )
 
 $commonMsbuildArgs = @(
@@ -377,6 +378,7 @@ $commonMsbuildArgs = @(
     "/p:AppxBundle=Never",
     "/p:PublishSingleFile=false",
     "/p:PublishTrimmed=false",
+    "/p:PublishReadyToRun=false",
     "/p:AppxPackageDir=AppPackages\",
     "/p:AppxPackageSigningEnabled=false",
     "/p:AppxPackageVersion=$(ConvertTo-MSBuildPropertyValue $resolvedVersion)",
