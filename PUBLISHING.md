@@ -30,9 +30,18 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -WorkspaceFolder .
 ```
 
+For a new Store submission, bump the MSIX package version while packaging:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\package-store-bundle.ps1 `
+  -WorkspaceFolder . `
+  -BumpVersion
+```
+
 Upload the generated `.msixbundle` from `artifacts\store\<timestamp>\` to the Partner Center **Packages** page.
 
-Current submit-ready bundle:
+Published v0.0.2 bundle:
 
 ```text
 artifacts\store\20260514-183636\WcpBrowserTabs_0.0.2.0_Bundle.msixbundle

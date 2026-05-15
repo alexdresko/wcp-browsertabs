@@ -13,7 +13,7 @@
     <!-- Replace these with your Partner Center package identity values before Store submission. -->
     <AppxPackageIdentityName>19990www.AlexDresko.com.wcp-browsertabs</AppxPackageIdentityName>
     <AppxPackagePublisher>CN=5588CB4A-B2FA-4850-8110-541E46C43DE2</AppxPackagePublisher>
-    <AppxPackageVersion>0.0.2.0</AppxPackageVersion>
+    <AppxPackageVersion>0.0.3.0</AppxPackageVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>

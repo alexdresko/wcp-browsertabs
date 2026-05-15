@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap uap3 rescap">
-  <Identity Name="19990www.AlexDresko.com.wcp-browsertabs" Publisher="CN=5588CB4A-B2FA-4850-8110-541E46C43DE2" Version="0.0.2.0" />
+  <Identity Name="19990www.AlexDresko.com.wcp-browsertabs" Publisher="CN=5588CB4A-B2FA-4850-8110-541E46C43DE2" Version="0.0.3.0" />
   <!-- When you're ready to publish your extension, you'll need to change the
        Publisher= to match your own identity -->
   <Properties>

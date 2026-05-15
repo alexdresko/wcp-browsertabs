@@ -8,6 +8,8 @@ param(
     [string]$Publisher,
     [string]$MakeAppxPath,
     [string]$OutputFolder,
+    [switch]$BumpVersion,
+    [switch]$UpdateVersion,
     [switch]$SkipBuild,
     [switch]$DryRun
 )
@@ -124,18 +126,109 @@ function ConvertTo-MSBuildPropertyValue {
         Replace(",", "%2C")
 }
 
+function Get-NextAppxPackageVersion {
+    param(
+        [string]$CurrentVersion
+    )
+
+    $parts = $CurrentVersion -split "\."
+    if ($parts.Length -ne 4) {
+        throw "Appx package version must have four numeric parts: $CurrentVersion"
+    }
+
+    $numbers = @()
+    foreach ($part in $parts) {
+        $value = 0
+        if (-not [int]::TryParse($part, [ref]$value) -or $value -lt 0 -or $value -gt 65535) {
+            throw "Appx package version parts must be numbers from 0 through 65535: $CurrentVersion"
+        }
+
+        $numbers += $value
+    }
+
+    if ($numbers[2] -ge 65535) {
+        throw "Cannot bump Appx package build version because it is already 65535: $CurrentVersion"
+    }
+
+    $numbers[2] += 1
+    $numbers[3] = 0
+
+    return ($numbers -join ".")
+}
+
+function Set-ProjectProperty {
+    param(
+        [xml]$ProjectXml,
+        [string]$Name,
+        [string]$Value
+    )
+
+    foreach ($group in $ProjectXml.Project.PropertyGroup) {
+        $candidate = $group.$Name
+        if ($null -ne $candidate) {
+            $group.$Name = $Value
+            return
+        }
+    }
+
+    $targetGroup = $ProjectXml.Project.PropertyGroup |
+        Where-Object { -not $_.Condition } |
+        Select-Object -First 1
+
+    if ($null -eq $targetGroup) {
+        throw "Could not find an unconditional PropertyGroup in project file."
+    }
+
+    $child = $ProjectXml.CreateElement($Name)
+    $child.InnerText = $Value
+    [void]$targetGroup.AppendChild($child)
+}
+
+function Set-PackageManifestVersion {
+    param(
+        [xml]$ManifestXml,
+        [string]$Version
+    )
+
+    if ($null -eq $ManifestXml.Package.Identity) {
+        throw "Could not find Package/Identity in manifest."
+    }
+
+    $ManifestXml.Package.Identity.Version = $Version
+}
+
 $projectRoot = Join-Path $WorkspaceFolder "src/extension/WcpBrowserTabs/WcpBrowserTabs"
 $projectPath = Join-Path $projectRoot "WcpBrowserTabs.csproj"
+$manifestPath = Join-Path $projectRoot "Package.appxmanifest"
 $packageRoot = Join-Path $projectRoot "AppPackages"
 
 if (-not (Test-Path $projectPath)) {
     throw "Project file not found: $projectPath"
 }
 
+if (-not (Test-Path $manifestPath)) {
+    throw "Manifest file not found: $manifestPath"
+}
+
 [xml]$projectXml = Get-Content -Path $projectPath -Raw
 $projectName = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
 
-$resolvedVersion = if ($Version) { $Version } else { Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageVersion" }
+$projectVersion = Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageVersion"
+
+if ($BumpVersion -and $Version) {
+    throw "Pass either -BumpVersion or -Version, not both."
+}
+
+$resolvedVersion = if ($BumpVersion) {
+    Get-NextAppxPackageVersion -CurrentVersion $projectVersion
+}
+elseif ($Version) {
+    $Version
+}
+else {
+    $projectVersion
+}
+
 $resolvedIdentityName = if ($IdentityName) { $IdentityName } else { Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageIdentityName" }
 $resolvedPublisher = if ($Publisher) { $Publisher } else { Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackagePublisher" }
 
@@ -153,6 +246,20 @@ if ([string]::IsNullOrWhiteSpace($resolvedPublisher)) {
 
 if ($resolvedPublisher -eq "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US") {
     Write-Warning "AppxPackagePublisher still matches the sample/template publisher. Replace it with your Partner Center publisher before Store submission."
+}
+
+if ($BumpVersion -or $UpdateVersion) {
+    [xml]$manifestXml = Get-Content -Path $manifestPath -Raw
+
+    Set-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageVersion" -Value $resolvedVersion
+    Set-PackageManifestVersion -ManifestXml $manifestXml -Version $resolvedVersion
+
+    if (-not $DryRun) {
+        $projectXml.Save($projectPath)
+        $manifestXml.Save($manifestPath)
+    }
+
+    Write-Host "Updated Appx package version: $resolvedVersion"
 }
 
 if (-not $OutputFolder) {
