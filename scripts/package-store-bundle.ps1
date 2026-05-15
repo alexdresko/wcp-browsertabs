@@ -156,6 +156,58 @@ function Get-NextAppxPackageVersion {
     return ($numbers -join ".")
 }
 
+function ConvertTo-AppxPackageVersion {
+    param(
+        [string]$InputVersion
+    )
+
+    $trimmed = $InputVersion.Trim()
+    $parts = $trimmed -split "\."
+    if ($parts.Length -eq 3) {
+        $trimmed = "$trimmed.0"
+        $parts = $trimmed -split "\."
+    }
+
+    if ($parts.Length -ne 4) {
+        throw "Package version must be SemVer (x.y.z) or Appx format (x.y.z.w): $InputVersion"
+    }
+
+    foreach ($part in $parts) {
+        $value = 0
+        if (-not [int]::TryParse($part, [ref]$value) -or $value -lt 0 -or $value -gt 65535) {
+            throw "Package version parts must be numbers from 0 through 65535: $InputVersion"
+        }
+    }
+
+    return $trimmed
+}
+
+function ConvertTo-SemVer {
+    param(
+        [string]$AppxVersion
+    )
+
+    $resolvedAppxVersion = ConvertTo-AppxPackageVersion -InputVersion $AppxVersion
+    $parts = $resolvedAppxVersion -split "\."
+    if ($parts[3] -ne "0") {
+        throw "Cannot represent Appx package version as SemVer when revision is not 0: $AppxVersion"
+    }
+
+    return ($parts[0..2] -join ".")
+}
+
+function Read-VersionFile {
+    param(
+        [string]$VersionPath
+    )
+
+    if (-not (Test-Path $VersionPath)) {
+        return $null
+    }
+
+    return (Get-Content -Path $VersionPath -Raw).Trim()
+}
+
 function Set-ProjectProperty {
     param(
         [xml]$ProjectXml,
@@ -197,10 +249,20 @@ function Set-PackageManifestVersion {
     $ManifestXml.Package.Identity.Version = $Version
 }
 
+function Save-XmlFile {
+    param(
+        [xml]$Xml,
+        [string]$Path
+    )
+
+    $Xml.Save((Resolve-Path $Path).Path)
+}
+
 $projectRoot = Join-Path $WorkspaceFolder "src/extension/WcpBrowserTabs/WcpBrowserTabs"
 $projectPath = Join-Path $projectRoot "WcpBrowserTabs.csproj"
 $manifestPath = Join-Path $projectRoot "Package.appxmanifest"
 $packageRoot = Join-Path $projectRoot "AppPackages"
+$versionPath = Join-Path $WorkspaceFolder "version.txt"
 
 if (-not (Test-Path $projectPath)) {
     throw "Project file not found: $projectPath"
@@ -214,19 +276,24 @@ if (-not (Test-Path $manifestPath)) {
 $projectName = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
 
 $projectVersion = Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageVersion"
+$fileVersion = Read-VersionFile -VersionPath $versionPath
 
 if ($BumpVersion -and $Version) {
     throw "Pass either -BumpVersion or -Version, not both."
 }
 
 $resolvedVersion = if ($BumpVersion) {
-    Get-NextAppxPackageVersion -CurrentVersion $projectVersion
+    $currentVersion = if ($fileVersion) { ConvertTo-AppxPackageVersion -InputVersion $fileVersion } else { ConvertTo-AppxPackageVersion -InputVersion $projectVersion }
+    Get-NextAppxPackageVersion -CurrentVersion $currentVersion
 }
 elseif ($Version) {
-    $Version
+    ConvertTo-AppxPackageVersion -InputVersion $Version
+}
+elseif ($fileVersion) {
+    ConvertTo-AppxPackageVersion -InputVersion $fileVersion
 }
 else {
-    $projectVersion
+    ConvertTo-AppxPackageVersion -InputVersion $projectVersion
 }
 
 $resolvedIdentityName = if ($IdentityName) { $IdentityName } else { Read-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageIdentityName" }
@@ -248,19 +315,47 @@ if ($resolvedPublisher -eq "CN=Microsoft Corporation, O=Microsoft Corporation, L
     Write-Warning "AppxPackagePublisher still matches the sample/template publisher. Replace it with your Partner Center publisher before Store submission."
 }
 
-if ($BumpVersion -or $UpdateVersion) {
-    [xml]$manifestXml = Get-Content -Path $manifestPath -Raw
+$originalProjectBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $projectPath).Path)
+$originalManifestBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $manifestPath).Path)
+$originalVersionBytes = if (Test-Path $versionPath) { [System.IO.File]::ReadAllBytes((Resolve-Path $versionPath).Path) } else { $null }
+$persistVersion = $BumpVersion -or $UpdateVersion
+$resolvedSemVer = $null
 
-    Set-ProjectProperty -ProjectXml $projectXml -Name "AppxPackageVersion" -Value $resolvedVersion
-    Set-PackageManifestVersion -ManifestXml $manifestXml -Version $resolvedVersion
+function Set-BuildVersionFiles {
+    param(
+        [switch]$Persist
+    )
+
+    [xml]$buildProjectXml = Get-Content -Path $projectPath -Raw
+    [xml]$buildManifestXml = Get-Content -Path $manifestPath -Raw
+
+    Set-ProjectProperty -ProjectXml $buildProjectXml -Name "AppxPackageVersion" -Value $resolvedVersion
+    Set-PackageManifestVersion -ManifestXml $buildManifestXml -Version $resolvedVersion
 
     if (-not $DryRun) {
-        $projectXml.Save($projectPath)
-        $manifestXml.Save($manifestPath)
-    }
+        Save-XmlFile -Xml $buildProjectXml -Path $projectPath
+        Save-XmlFile -Xml $buildManifestXml -Path $manifestPath
 
-    Write-Host "Updated Appx package version: $resolvedVersion"
+        if ($Persist) {
+            Set-Content -Path $versionPath -Value $resolvedSemVer -Encoding ascii
+        }
+    }
 }
+
+if ($persistVersion) {
+    $resolvedSemVer = ConvertTo-SemVer -AppxVersion $resolvedVersion
+
+    if ($DryRun) {
+        Write-Host "Would update Appx package version: $resolvedVersion"
+        Write-Host "Would update app version: $resolvedSemVer"
+    }
+    else {
+        Write-Host "Updated Appx package version: $resolvedVersion"
+        Write-Host "Updated app version: $resolvedSemVer"
+    }
+}
+
+Set-BuildVersionFiles -Persist:$persistVersion
 
 if (-not $OutputFolder) {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -284,57 +379,72 @@ $commonMsbuildArgs = @(
     "/p:AppxPackagePublisher=$(ConvertTo-MSBuildPropertyValue $resolvedPublisher)"
 )
 
-if (-not $SkipBuild) {
-    Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=x64") -DryRunMode:$DryRun
-    Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=ARM64") -DryRunMode:$DryRun
+try {
+    if (-not $SkipBuild) {
+        Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=x64") -DryRunMode:$DryRun
+        Invoke-DotnetMsbuild -ProjectPath $projectPath -Arguments ($commonMsbuildArgs + "/p:Platform=ARM64") -DryRunMode:$DryRun
+    }
+
+    if ($DryRun) {
+        Write-Host "Dry run completed. Skipped package discovery and bundling."
+        exit 0
+    }
+
+    if (-not (Test-Path $packageRoot)) {
+        throw "Package output folder not found: $packageRoot"
+    }
+
+    $x64Package = Get-LatestPackageForArch -PackageRoot $packageRoot -Architecture "x64"
+    $arm64Package = Get-LatestPackageForArch -PackageRoot $packageRoot -Architecture "arm64"
+
+    if ($null -eq $x64Package) {
+        throw "Unable to find the generated x64 MSIX package under $packageRoot"
+    }
+
+    if ($null -eq $arm64Package) {
+        throw "Unable to find the generated arm64 MSIX package under $packageRoot"
+    }
+
+    $bundleBaseName = "{0}_{1}_Bundle" -f $projectName, $resolvedVersion
+    $bundlePath = Join-Path $OutputFolder ($bundleBaseName + ".msixbundle")
+    $mappingPath = Join-Path $OutputFolder "bundle_mapping.txt"
+
+    $mappingContent = @(
+        "[Files]",
+        ('"{0}" "{1}"' -f $x64Package.FullName, $x64Package.Name),
+        ('"{0}" "{1}"' -f $arm64Package.FullName, $arm64Package.Name)
+    ) -join [Environment]::NewLine
+
+    Set-Content -Path $mappingPath -Value $mappingContent -Encoding ascii
+
+    $resolvedMakeAppx = Get-MakeAppxExecutable -ExplicitPath $MakeAppxPath
+    Write-Host "Using makeappx: $resolvedMakeAppx"
+
+    Write-Host ("{0} (x64): {1}" -f $x64Package.Name, $x64Package.FullName)
+    Write-Host ("{0} (arm64): {1}" -f $arm64Package.Name, $arm64Package.FullName)
+
+    & $resolvedMakeAppx bundle /f $mappingPath /p $bundlePath
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+
+    if (-not (Test-Path $bundlePath)) {
+        throw "Bundle file was not created: $bundlePath"
+    }
+
+    Write-Host "Created Store bundle: $bundlePath"
+    Write-Host "Bundle mapping: $mappingPath"
 }
+finally {
+    if (-not $DryRun -and -not $persistVersion) {
+        [System.IO.File]::WriteAllBytes((Resolve-Path $projectPath).Path, $originalProjectBytes)
+        [System.IO.File]::WriteAllBytes((Resolve-Path $manifestPath).Path, $originalManifestBytes)
 
-if ($DryRun) {
-    Write-Host "Dry run completed. Skipped package discovery and bundling."
-    exit 0
+        if ($null -eq $originalVersionBytes) {
+            Remove-Item -Path $versionPath -ErrorAction SilentlyContinue
+        }
+        else {
+            [System.IO.File]::WriteAllBytes((Resolve-Path $versionPath).Path, $originalVersionBytes)
+        }
+    }
 }
-
-if (-not (Test-Path $packageRoot)) {
-    throw "Package output folder not found: $packageRoot"
-}
-
-$x64Package = Get-LatestPackageForArch -PackageRoot $packageRoot -Architecture "x64"
-$arm64Package = Get-LatestPackageForArch -PackageRoot $packageRoot -Architecture "arm64"
-
-if ($null -eq $x64Package) {
-    throw "Unable to find the generated x64 MSIX package under $packageRoot"
-}
-
-if ($null -eq $arm64Package) {
-    throw "Unable to find the generated arm64 MSIX package under $packageRoot"
-}
-
-$bundleBaseName = "{0}_{1}_Bundle" -f $projectName, $resolvedVersion
-$bundlePath = Join-Path $OutputFolder ($bundleBaseName + ".msixbundle")
-$mappingPath = Join-Path $OutputFolder "bundle_mapping.txt"
-
-$mappingContent = @(
-    "[Files]",
-    ('"{0}" "{1}"' -f $x64Package.FullName, $x64Package.Name),
-    ('"{0}" "{1}"' -f $arm64Package.FullName, $arm64Package.Name)
-) -join [Environment]::NewLine
-
-Set-Content -Path $mappingPath -Value $mappingContent -Encoding ascii
-
-$resolvedMakeAppx = Get-MakeAppxExecutable -ExplicitPath $MakeAppxPath
-Write-Host "Using makeappx: $resolvedMakeAppx"
-
-Write-Host ("{0} (x64): {1}" -f $x64Package.Name, $x64Package.FullName)
-Write-Host ("{0} (arm64): {1}" -f $arm64Package.Name, $arm64Package.FullName)
-
-& $resolvedMakeAppx bundle /f $mappingPath /p $bundlePath
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
-}
-
-if (-not (Test-Path $bundlePath)) {
-    throw "Bundle file was not created: $bundlePath"
-}
-
-Write-Host "Created Store bundle: $bundlePath"
-Write-Host "Bundle mapping: $mappingPath"

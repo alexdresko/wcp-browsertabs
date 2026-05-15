@@ -39,9 +39,20 @@ jobs:
           /nologo
           /v:minimal
 
-      - name: Validate Store bundle script (dry run)
+      - name: Build PR Store bundle
         shell: pwsh
-        run: >
-          ./scripts/package-store-bundle.ps1
-          -WorkspaceFolder "${{ github.workspace }}"
-          -DryRun
+        run: |
+          $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\pr"
+          ./scripts/package-store-bundle.ps1 `
+            -WorkspaceFolder "${{ github.workspace }}" `
+            -Version "0.0.${{ github.run_number }}.0" `
+            -OutputFolder $outputFolder
+
+      - name: Upload PR Store bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-store-bundle-${{ github.run_number }}
+          path: |
+            artifacts/pr/*.msixbundle
+            artifacts/pr/bundle_mapping.txt
+          if-no-files-found: error

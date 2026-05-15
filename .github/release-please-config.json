@@ -4,6 +4,7 @@
     ".": {
       "release-type": "simple",
       "include-v-in-tag": true,
+      "version-file": "version.txt",
       "changelog-path": "CHANGELOG.md"
     }
   }

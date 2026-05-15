@@ -24,6 +24,10 @@ Apply them locally:
 
 ## Build the Store bundle
 
+`version.txt` is the source of truth for the app version. Store/MSIX package
+versions use the same version with a trailing `.0` revision. For example,
+`version.txt` value `0.0.3` packages as `0.0.3.0`.
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\package-store-bundle.ps1 `
@@ -38,6 +42,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -WorkspaceFolder . `
   -BumpVersion
 ```
+
+Release Please owns normal release version bumps. Store submissions should come
+from GitHub Release artifacts. Pull request bundles are validation-only and
+should not be uploaded to Partner Center.
 
 Upload the generated `.msixbundle` from `artifacts\store\<timestamp>\` to the Partner Center **Packages** page.
 
@@ -87,7 +95,7 @@ Answer the age-rating questionnaire truthfully for a productivity utility:
 Upload:
 
 ```text
-artifacts\store\<timestamp>\WcpBrowserTabs_0.0.1.0_Bundle.msixbundle
+artifacts\store\<timestamp>\WcpBrowserTabs_<version>.0_Bundle.msixbundle
 ```
 
 After upload, confirm the package validates and is offered for Windows Desktop. Do not enable Xbox, Holographic, or Team device families.
