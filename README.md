@@ -66,3 +66,19 @@ The package version is stored in:
 - `src\extension\WcpBrowserTabs\WcpBrowserTabs\Package.appxmanifest`
 
 Store bundles are written to `artifacts\store\<timestamp>\`.
+
+## Versioning
+
+The app version is stored in `version.txt` as SemVer, for example `0.0.3`.
+Release Please owns release version bumps and creates tags such as `v0.0.4`.
+
+MSIX packages require four version parts, so Store package versions append a
+zero revision:
+
+```text
+App version:          0.0.3
+MSIX package version: 0.0.3.0
+```
+
+Pull request builds create validation-only Store bundles with CI run-number
+versions. Submit Store packages from GitHub Release artifacts, not PR artifacts.

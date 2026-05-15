@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build-extension:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
@@ -26,6 +26,17 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
+
+      - name: Verify Windows SDK platform
+        shell: pwsh
+        run: |
+          $platformXml = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP\10.0.22621.0\Platform.xml"
+          if (-not (Test-Path $platformXml)) {
+            Write-Host "Installed UAP SDK platforms:"
+            Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP" -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw "Required Windows SDK UAP platform file not found: $platformXml"
+          }
 
       - name: Build extension (Debug x64)
         shell: pwsh
@@ -39,9 +50,20 @@ jobs:
           /nologo
           /v:minimal
 
-      - name: Validate Store bundle script (dry run)
+      - name: Build PR Store bundle
         shell: pwsh
-        run: >
-          ./scripts/package-store-bundle.ps1
-          -WorkspaceFolder "${{ github.workspace }}"
-          -DryRun
+        run: |
+          $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\pr"
+          ./scripts/package-store-bundle.ps1 `
+            -WorkspaceFolder "${{ github.workspace }}" `
+            -Version "0.0.${{ github.run_number }}.0" `
+            -OutputFolder $outputFolder
+
+      - name: Upload PR Store bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-store-bundle-${{ github.run_number }}
+          path: |
+            artifacts/pr/*.msixbundle
+            artifacts/pr/bundle_mapping.txt
+          if-no-files-found: error
