@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-extension:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build extension (Debug x64)
+        shell: pwsh
+        run: >
+          dotnet msbuild
+          src/extension/WcpBrowserTabs/WcpBrowserTabs/WcpBrowserTabs.csproj
+          /t:Restore,Build
+          /p:Configuration=Debug
+          /p:Platform=x64
+          /p:GenerateAppxPackageOnBuild=false
+          /nologo
+          /v:minimal
+
+      - name: Validate Store bundle script (dry run)
+        shell: pwsh
+        run: >
+          ./scripts/package-store-bundle.ps1
+          -WorkspaceFolder "${{ github.workspace }}"
+          -DryRun

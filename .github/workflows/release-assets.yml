@@ -1,0 +1,102 @@
+name: release-assets
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to package (for example v0.1.0)
+        required: true
+        type: string
+      ref:
+        description: Optional git ref/branch/tag to checkout (defaults to the tag)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-assets-${{ github.event_name }}-${{ github.event.release.tag_name || inputs.tag || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build-store-bundle:
+    runs-on: windows-latest
+
+    env:
+      APPX_PACKAGE_IDENTITY_NAME: ${{ vars.APPX_PACKAGE_IDENTITY_NAME }}
+      APPX_PACKAGE_PUBLISHER: ${{ secrets.APPX_PACKAGE_PUBLISHER || vars.APPX_PACKAGE_PUBLISHER }}
+
+    steps:
+      - name: Resolve version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = if ("${{ github.event_name }}" -eq "release") { "${{ github.event.release.tag_name }}" } else { "${{ inputs.tag }}" }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Tag is required."
+          }
+
+          $semver = if ($tag.StartsWith("v")) { $tag.Substring(1) } else { $tag }
+          if ($semver -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Expected a SemVer tag like v1.2.3. Received: $tag"
+          }
+
+          # AppxPackageVersion requires four components (Major.Minor.Build.Revision).
+          $appxVersion = "$semver.0"
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "semver=$semver" >> $env:GITHUB_OUTPUT
+          "appx_version=$appxVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || steps.version.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build Store MSIX bundle
+        shell: pwsh
+        run: |
+          $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\release"
+          $args = @(
+            "-WorkspaceFolder", "${{ github.workspace }}",
+            "-Version", "${{ steps.version.outputs.appx_version }}",
+            "-OutputFolder", $outputFolder
+          )
+
+          if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_IDENTITY_NAME)) {
+            $args += @("-IdentityName", $env:APPX_PACKAGE_IDENTITY_NAME)
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_PUBLISHER)) {
+            $args += @("-Publisher", $env:APPX_PACKAGE_PUBLISHER)
+          }
+
+          & ./scripts/package-store-bundle.ps1 @args
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-bundle-${{ steps.version.outputs.semver }}
+          path: |
+            artifacts/release/*.msixbundle
+            artifacts/release/bundle_mapping.txt
+          if-no-files-found: error
+
+      - name: Attach bundle to GitHub Release
+        if: ${{ github.event_name == 'release' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            artifacts/release/*.msixbundle
+            artifacts/release/bundle_mapping.txt
