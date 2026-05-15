@@ -78,21 +78,21 @@ jobs:
         shell: pwsh
         run: |
           $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\release"
-          $args = @(
+          $packageArgs = @(
             "-WorkspaceFolder", "${{ github.workspace }}",
             "-Version", "${{ steps.version.outputs.appx_version }}",
             "-OutputFolder", $outputFolder
           )
 
           if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_IDENTITY_NAME)) {
-            $args += @("-IdentityName", $env:APPX_PACKAGE_IDENTITY_NAME)
+            $packageArgs += @("-IdentityName", $env:APPX_PACKAGE_IDENTITY_NAME)
           }
 
           if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_PUBLISHER)) {
-            $args += @("-Publisher", $env:APPX_PACKAGE_PUBLISHER)
+            $packageArgs += @("-Publisher", $env:APPX_PACKAGE_PUBLISHER)
           }
 
-          & ./scripts/package-store-bundle.ps1 @args
+          & ./scripts/package-store-bundle.ps1 @packageArgs
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
@@ -104,7 +104,6 @@ jobs:
           if-no-files-found: error
 
       - name: Attach bundle to GitHub Release
-        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
