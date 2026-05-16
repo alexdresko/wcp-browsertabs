@@ -55,6 +55,59 @@ Published v0.0.2 bundle:
 artifacts\store\20260514-183636\WcpBrowserTabs_0.0.2.0_Bundle.msixbundle
 ```
 
+## Partner Center automation
+
+Store packages can be uploaded from GitHub Releases with the manual
+`partner-center-submit` workflow. It is intentionally not triggered by release,
+push, or pull request events.
+
+Required GitHub environment:
+
+```text
+partner-center-production
+```
+
+Required environment secrets:
+
+```text
+PARTNER_CENTER_TENANT_ID
+PARTNER_CENTER_CLIENT_ID
+PARTNER_CENTER_CLIENT_SECRET
+PARTNER_CENTER_APPLICATION_ID
+```
+
+`PARTNER_CENTER_APPLICATION_ID` is the Store ID for this app from Partner
+Center. The Entra application must be associated with the Partner Center account
+and granted the Partner Center role required to manage app submissions.
+
+Workflow inputs:
+
+```text
+tag             GitHub Release tag containing one .msixbundle asset
+mode            draft or submit
+confirm_submit  must be SUBMIT when mode is submit
+dry_run         validates release asset discovery without calling Partner Center
+```
+
+Use `mode=draft` first. Draft mode creates a new Partner Center submission from
+the latest published submission, uploads the release package archive, updates
+the package reference, and stops. It does not request certification.
+
+Use `mode=submit` only after a draft upload has been verified. Submit mode
+requires `confirm_submit=SUBMIT`, commits the submission, and starts Store
+ingestion/certification.
+
+Important operational rules:
+
+- Do not manually edit a Partner Center submission created by the API. If manual
+  edits are needed, delete the API-created draft and create a new submission.
+- Do not run another submission while one is already in certification,
+  preprocessing, publishing, or another active state.
+- If Partner Center throttles requests, the script honors `Retry-After` and
+  backs off before retrying.
+- PR validation bundles are still not submission candidates; submit only GitHub
+  Release artifacts.
+
 ## Partner Center submission checklist
 
 The bundle only completes the **Packages** page. Partner Center also requires these sections before **Submit for certification** is enabled.

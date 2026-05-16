@@ -1,0 +1,70 @@
+name: partner-center-submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub Release tag to submit (for example v0.0.4)
+        required: true
+        type: string
+      mode:
+        description: Create draft only, or commit the draft for certification
+        required: true
+        default: draft
+        type: choice
+        options:
+          - draft
+          - submit
+      confirm_submit:
+        description: Type SUBMIT when mode is submit
+        required: false
+        type: string
+      dry_run:
+        description: Validate release asset discovery and request construction only
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: partner-center-submit-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  submit-package:
+    runs-on: windows-2022
+    environment: partner-center-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Submit release package to Partner Center
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+          PARTNER_CENTER_APPLICATION_ID: ${{ secrets.PARTNER_CENTER_APPLICATION_ID }}
+        run: |
+          $submitArgs = @{
+            Tag = "${{ inputs.tag }}"
+            Repository = "${{ github.repository }}"
+            Mode = "${{ inputs.mode }}"
+            ConfirmSubmit = "${{ inputs.confirm_submit }}"
+            ApplicationId = $env:PARTNER_CENTER_APPLICATION_ID
+            TenantId = $env:PARTNER_CENTER_TENANT_ID
+            ClientId = $env:PARTNER_CENTER_CLIENT_ID
+            ClientSecret = $env:PARTNER_CENTER_CLIENT_SECRET
+            GithubToken = $env:GITHUB_TOKEN
+            OutputFolder = (Join-Path "${{ github.workspace }}" "artifacts\partner-center\${{ inputs.tag }}")
+          }
+
+          if ("${{ inputs.dry_run }}" -eq "true") {
+            $submitArgs.DryRun = $true
+          }
+
+          ./scripts/submit-partner-center-package.ps1 @submitArgs
