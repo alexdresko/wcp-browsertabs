@@ -195,6 +195,12 @@ internal static class BrowserTabDiscoveryService
                 return true;
             }
 
+            if (processName.Equals("firefox", StringComparison.OrdinalIgnoreCase))
+            {
+                browserName = "Firefox";
+                return true;
+            }
+
             return false;
         }
         catch (ArgumentException)

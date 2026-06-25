@@ -17,12 +17,12 @@ internal sealed partial class WcpBrowserTabsPage : DynamicListPage
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Browser Tabs";
         Name = "Open";
-        PlaceholderText = "Search open Chrome and Edge tabs";
+        PlaceholderText = "Search open Chrome, Edge, and Firefox tabs";
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = Icon,
             Title = "No browser tabs found",
-            Subtitle = "Open Chrome or Edge tabs, then try again.",
+            Subtitle = "Open Chrome, Edge, or Firefox tabs, then try again.",
         };
     }
 

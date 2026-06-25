@@ -4,7 +4,7 @@
 
 This repository contains a Windows Command Palette extension named **Browser Tabs**.
 
-- It discovers open browser tabs from supported browsers (currently Chrome and Edge).
+- It discovers open browser tabs from supported browsers (currently Chrome, Edge, and Firefox).
 - It shows those tabs in Command Palette so users can search and switch quickly.
 - It is implemented as a COM-based Windows app extension.
 

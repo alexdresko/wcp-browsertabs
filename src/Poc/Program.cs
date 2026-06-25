@@ -160,6 +160,12 @@ internal static class BrowserTabReader
                 return true;
             }
 
+            if (processName.Equals("firefox", StringComparison.OrdinalIgnoreCase))
+            {
+                browser = "Firefox";
+                return true;
+            }
+
             return false;
         }
         catch (ArgumentException)

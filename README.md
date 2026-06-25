@@ -1,6 +1,6 @@
 # wcp-browsertabs
 
-Browser Tabs is a Windows Command Palette extension for searching and switching between open Chrome and Microsoft Edge tabs.
+Browser Tabs is a Windows Command Palette extension for searching and switching between open Chrome, Microsoft Edge, and Firefox tabs.
 
 Install it from the Microsoft Store:
 
@@ -10,12 +10,12 @@ https://apps.microsoft.com/detail/9N7BMMLTGFWX
 
 - Windows 10 version 2004 or later
 - Microsoft PowerToys with Command Palette enabled
-- Chrome or Microsoft Edge
+- Chrome, Microsoft Edge, or Firefox
 
 ## Usage
 
 1. Install `wcp-browsertabs` from the Microsoft Store.
-2. Open Chrome or Microsoft Edge with a few tabs.
+2. Open Chrome, Microsoft Edge, or Firefox with a few tabs.
 3. Open PowerToys Command Palette.
 4. Open **Browser Tabs**.
 5. Search by tab title, browser, or window title.
