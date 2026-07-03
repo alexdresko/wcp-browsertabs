@@ -50,6 +50,14 @@ jobs:
           /nologo
           /v:minimal
 
+      - name: Run unit tests
+        shell: pwsh
+        run: >
+          dotnet test
+          src/extension/WcpBrowserTabs/WcpBrowserTabs.Tests/WcpBrowserTabs.Tests.csproj
+          --configuration Debug
+          /p:Platform=x64
+
       - name: Build PR Store bundle
         shell: pwsh
         run: |

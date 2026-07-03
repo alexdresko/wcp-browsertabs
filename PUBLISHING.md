@@ -160,13 +160,13 @@ Use this draft listing copy.
 Short description:
 
 ```text
-Switch to open Chrome and Edge tabs directly from Windows Command Palette.
+Switch to open Chrome, Edge, and Firefox tabs directly from Windows Command Palette.
 ```
 
 Description:
 
 ```text
-Browser Tabs integrates with Windows Command Palette to make open browser tabs searchable from one launcher. It discovers open Chrome and Microsoft Edge tabs on your Windows desktop, shows matching tabs in Command Palette, and switches directly to the selected tab.
+Browser Tabs integrates with Windows Command Palette to make open browser tabs searchable from one launcher. It discovers open Chrome, Microsoft Edge, and Firefox tabs on your Windows desktop, shows matching tabs in Command Palette, and switches directly to the selected tab.
 
 This extension requires Microsoft PowerToys Command Palette to be installed and enabled. Browser tab discovery runs locally on your device using Windows UI Automation. Browser Tabs does not send your browser tab data to a remote service.
 ```
@@ -182,6 +182,7 @@ Features:
 ```text
 Search open Chrome tabs
 Search open Microsoft Edge tabs
+Search open Firefox tabs
 Switch directly to a selected tab
 Highlights currently active tabs
 Runs locally as a Command Palette extension
@@ -190,7 +191,7 @@ Runs locally as a Command Palette extension
 Keywords:
 
 ```text
-command palette, powertoys, browser tabs, chrome, edge, tab switcher, productivity
+command palette, powertoys, browser tabs, chrome, edge, firefox, tab switcher, productivity
 ```
 
 Screenshots:
@@ -239,7 +240,7 @@ Recommended screenshot set:
 Suggested captions:
 
 ```text
-Search open Chrome and Edge tabs from Windows Command Palette.
+Search open Chrome, Edge, and Firefox tabs from Windows Command Palette.
 Filter browser tabs by title, browser, or window text.
 Switch directly to the selected browser tab.
 Runs locally as a PowerToys Command Palette extension.
@@ -256,13 +257,13 @@ Certification note:
 ```text
 Browser Tabs is a Windows Command Palette extension, not a standalone app. Its app-list entry is disabled intentionally because users launch it through Microsoft PowerToys Command Palette. If the package executable is launched directly, it shows an informational dialog explaining that Browser Tabs must be opened from Command Palette.
 
-To test it, install and enable Microsoft PowerToys Command Palette, open Chrome or Microsoft Edge with several tabs, launch Command Palette, open Browser Tabs, search for a tab title, and select a result. The extension should bring the browser window forward and activate the selected tab. No account, network service, or test credentials are required.
+To test it, install and enable Microsoft PowerToys Command Palette, open Chrome, Microsoft Edge, or Firefox with several tabs, launch Command Palette, open Browser Tabs, search for a tab title, and select a result. The extension should bring the browser window forward and activate the selected tab. No account, network service, or test credentials are required.
 ```
 
 Restricted capability explanation for `runFullTrust`:
 
 ```text
-Browser Tabs declares runFullTrust because Command Palette extensions use an out-of-process COM server and packaged COM registration. The extension runs as a desktop Command Palette extension, enumerates local Chrome and Microsoft Edge window/tab UI Automation elements, and activates the selected local browser tab. It does not use runFullTrust to elevate privileges, install services, modify system settings, or access user files.
+Browser Tabs declares runFullTrust because Command Palette extensions use an out-of-process COM server and packaged COM registration. The extension runs as a desktop Command Palette extension, enumerates local Chrome, Microsoft Edge, and Firefox window/tab UI Automation elements, and activates the selected local browser tab. It does not use runFullTrust to elevate privileges, install services, modify system settings, or access user files.
 ```
 
 Useful Microsoft docs:
