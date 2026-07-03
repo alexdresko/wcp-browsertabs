@@ -57,7 +57,18 @@ internal static class BrowserTabDiscoveryService
             try
             {
                 var window = windows.GetElement(i);
+                var processId = window.CurrentProcessId;
+                if (!TryGetBrowserName(GetProcessName(processId), out _))
+                {
+                    continue;
+                }
+
                 var windowHandle = window.CurrentNativeWindowHandle;
+                if (windowHandle == nint.Zero)
+                {
+                    continue;
+                }
+
                 var windowTitle = window.CurrentName?.Trim() ?? string.Empty;
                 var tabItems = window.FindAll(TreeScope.TreeScope_Descendants, tabCondition);
                 var tabs = new List<DiscoveredBrowserTab>();
@@ -76,7 +87,7 @@ internal static class BrowserTabDiscoveryService
                 }
 
                 windowsSnapshot.Add(new DiscoveredBrowserWindow(
-                    window.CurrentProcessId,
+                    processId,
                     windowHandle,
                     windowTitle,
                     tabs));
