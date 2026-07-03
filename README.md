@@ -43,6 +43,35 @@ Build:
 dotnet build src\extension\WcpBrowserTabs\WcpBrowserTabs.sln
 ```
 
+Run unit tests:
+
+```powershell
+dotnet test src\extension\WcpBrowserTabs\WcpBrowserTabs.Tests\WcpBrowserTabs.Tests.csproj /p:Platform=x64
+```
+
+Run unit tests with coverage:
+
+```powershell
+dotnet test src\extension\WcpBrowserTabs\WcpBrowserTabs.Tests\WcpBrowserTabs.Tests.csproj --settings src\extension\WcpBrowserTabs\WcpBrowserTabs.Tests\coverage.runsettings --collect "XPlat Code Coverage" --results-directory artifacts\unit-tests /p:Platform=x64
+```
+
+Run browser UI integration tests:
+
+```powershell
+dotnet test src\extension\WcpBrowserTabs\WcpBrowserTabs.UiTests\WcpBrowserTabs.UiTests.csproj --filter Category=Ui /p:Platform=x64
+```
+
+Run browser UI integration tests with coverage:
+
+```powershell
+dotnet test src\extension\WcpBrowserTabs\WcpBrowserTabs.UiTests\WcpBrowserTabs.UiTests.csproj --filter Category=Ui --settings src\extension\WcpBrowserTabs\WcpBrowserTabs.UiTests\coverage.runsettings --collect "XPlat Code Coverage" --results-directory artifacts\ui-tests /p:Platform=x64
+```
+
+The UI tests launch Chrome, Microsoft Edge, and Firefox with temporary profiles
+and local test pages. Tests for browsers that are not installed are skipped.
+Coverage output is written as Cobertura XML under `artifacts\unit-tests\` or
+`artifacts\ui-tests\`.
+
 Create a Store bundle using the current package version:
 
 ```powershell

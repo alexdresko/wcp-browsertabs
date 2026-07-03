@@ -1,0 +1,70 @@
+name: ui-tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  browser-ui-tests:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Verify Windows SDK platform
+        shell: pwsh
+        run: |
+          $platformXml = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP\10.0.22621.0\Platform.xml"
+          if (-not (Test-Path $platformXml)) {
+            Write-Host "Installed UAP SDK platforms:"
+            Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP" -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw "Required Windows SDK UAP platform file not found: $platformXml"
+          }
+
+      - name: Run unit tests with coverage
+        shell: pwsh
+        run: >
+          dotnet test
+          src/extension/WcpBrowserTabs/WcpBrowserTabs.Tests/WcpBrowserTabs.Tests.csproj
+          --configuration Debug
+          --settings src/extension/WcpBrowserTabs/WcpBrowserTabs.Tests/coverage.runsettings
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory artifacts/unit-tests
+          /p:Platform=x64
+
+      - name: Run browser UI tests
+        shell: pwsh
+        run: >
+          dotnet test
+          src/extension/WcpBrowserTabs/WcpBrowserTabs.UiTests/WcpBrowserTabs.UiTests.csproj
+          --configuration Debug
+          --filter Category=Ui
+          --settings src/extension/WcpBrowserTabs/WcpBrowserTabs.UiTests/coverage.runsettings
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=ui-tests.trx"
+          --results-directory artifacts/ui-tests
+          /p:Platform=x64
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: |
+            artifacts/unit-tests
+            artifacts/ui-tests
+          if-no-files-found: ignore

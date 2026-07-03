@@ -50,62 +50,89 @@ internal static class BrowserTabDiscoveryService
             UIA_ControlTypeIds.UIA_TabItemControlTypeId);
 
         var windows = root.FindAll(TreeScope.TreeScope_Children, windowCondition);
-        var tabs = new List<BrowserTab>();
-        var seenTabs = new HashSet<string>(StringComparer.Ordinal);
+        var windowsSnapshot = new List<DiscoveredBrowserWindow>();
 
         for (var i = 0; i < windows.Length; i++)
         {
             try
             {
                 var window = windows.GetElement(i);
-                if (!TryGetBrowserName(window.CurrentProcessId, out var browser))
-                {
-                    continue;
-                }
-
                 var windowHandle = window.CurrentNativeWindowHandle;
-                if (windowHandle == nint.Zero)
-                {
-                    continue;
-                }
-
                 var windowTitle = window.CurrentName?.Trim() ?? string.Empty;
                 var tabItems = window.FindAll(TreeScope.TreeScope_Descendants, tabCondition);
+                var tabs = new List<DiscoveredBrowserTab>();
 
                 for (var j = 0; j < tabItems.Length; j++)
                 {
                     try
                     {
                         var tab = tabItems.GetElement(j);
-                        var tabTitle = tab.CurrentName?.Trim();
-                        if (string.IsNullOrWhiteSpace(tabTitle))
-                        {
-                            continue;
-                        }
-
-                        var tabKey = $"{browser}\u001f{windowHandle}\u001f{tabTitle}";
-                        if (!seenTabs.Add(tabKey))
-                        {
-                            continue;
-                        }
-
-                        tabs.Add(new BrowserTab(
-                            browser,
-                            window.CurrentProcessId,
-                            windowHandle,
-                            windowTitle,
-                            tabTitle,
-                            IsActiveTab(tab)));
+                        tabs.Add(new DiscoveredBrowserTab(tab.CurrentName, IsActiveTab(tab)));
                     }
                     catch
                     {
-                        // Ignore individual tab failures and continue building partial results.
+                        // Ignore individual tab failures and continue building partial snapshots.
                     }
                 }
+
+                windowsSnapshot.Add(new DiscoveredBrowserWindow(
+                    window.CurrentProcessId,
+                    windowHandle,
+                    windowTitle,
+                    tabs));
             }
             catch
             {
-                // Ignore individual window failures and continue building partial results.
+                // Ignore individual window failures and continue building partial snapshots.
+            }
+        }
+
+        return CreateTabs(windowsSnapshot, GetProcessName);
+    }
+
+    internal static IReadOnlyList<BrowserTab> CreateTabs(
+        IEnumerable<DiscoveredBrowserWindow> windows,
+        Func<int, string?> getProcessName)
+    {
+        ArgumentNullException.ThrowIfNull(windows);
+        ArgumentNullException.ThrowIfNull(getProcessName);
+
+        var tabs = new List<BrowserTab>();
+        var seenTabs = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var window in windows)
+        {
+            if (!TryGetBrowserName(getProcessName(window.ProcessId), out var browser))
+            {
+                continue;
+            }
+
+            if (window.WindowHandle == nint.Zero)
+            {
+                continue;
+            }
+
+            foreach (var tab in window.Tabs)
+            {
+                var tabTitle = tab.Title?.Trim();
+                if (string.IsNullOrWhiteSpace(tabTitle))
+                {
+                    continue;
+                }
+
+                var tabKey = $"{browser}\u001f{window.WindowHandle}\u001f{tabTitle}";
+                if (!seenTabs.Add(tabKey))
+                {
+                    continue;
+                }
+
+                tabs.Add(new BrowserTab(
+                    browser,
+                    window.ProcessId,
+                    window.WindowHandle,
+                    window.WindowTitle.Trim(),
+                    tabTitle,
+                    tab.IsActiveTab));
             }
         }
 
@@ -172,64 +199,60 @@ internal static class BrowserTabDiscoveryService
         }
     }
 
-    private static bool TryGetBrowserName(int processId, out string browserName)
+    private static string? GetProcessName(int processId)
     {
-        browserName = string.Empty;
         if (processId <= 0)
         {
-            return false;
+            return null;
         }
 
         try
         {
-            var processName = Process.GetProcessById(processId).ProcessName;
-            if (processName.Equals("chrome", StringComparison.OrdinalIgnoreCase))
-            {
-                browserName = "Chrome";
-                return true;
-            }
-
-            if (processName.Equals("msedge", StringComparison.OrdinalIgnoreCase))
-            {
-                browserName = "Edge";
-                return true;
-            }
-
-            if (processName.Equals("firefox", StringComparison.OrdinalIgnoreCase))
-            {
-                browserName = "Firefox";
-                return true;
-            }
-
-            return false;
+            return Process.GetProcessById(processId).ProcessName;
         }
         catch (ArgumentException)
         {
-            return false;
+            return null;
         }
         catch (InvalidOperationException)
         {
-            return false;
+            return null;
         }
     }
 
-    [SupportedOSPlatform("windows")]
-    private static bool IsActiveTab(IUIAutomationElement tab)
+    internal static bool TryGetBrowserName(string? processName, out string browserName)
     {
-        try
-        {
-            var selectionPattern = tab.GetCurrentPattern(UIA_PatternIds.UIA_SelectionItemPatternId) as IUIAutomationSelectionItemPattern;
-            return selectionPattern?.CurrentIsSelected == 1;
-        }
-        catch
+        browserName = string.Empty;
+        if (string.IsNullOrWhiteSpace(processName))
         {
             return false;
         }
+
+        if (processName.Equals("chrome", StringComparison.OrdinalIgnoreCase))
+        {
+            browserName = "Chrome";
+            return true;
+        }
+
+        if (processName.Equals("msedge", StringComparison.OrdinalIgnoreCase))
+        {
+            browserName = "Edge";
+            return true;
+        }
+
+        if (processName.Equals("firefox", StringComparison.OrdinalIgnoreCase))
+        {
+            browserName = "Firefox";
+            return true;
+        }
+
+        return false;
     }
 
-    [SupportedOSPlatform("windows")]
-    private static T RunInStaThread<T>(Func<T> work)
+    internal static T RunInStaThread<T>(Func<T> work)
     {
+        ArgumentNullException.ThrowIfNull(work);
+
         T? result = default;
         Exception? error = null;
 
@@ -255,6 +278,28 @@ internal static class BrowserTabDiscoveryService
         }
 
         return result!;
+    }
+
+    internal sealed record DiscoveredBrowserWindow(
+        int ProcessId,
+        nint WindowHandle,
+        string WindowTitle,
+        IReadOnlyList<DiscoveredBrowserTab> Tabs);
+
+    internal sealed record DiscoveredBrowserTab(string? Title, bool IsActiveTab);
+
+    [SupportedOSPlatform("windows")]
+    private static bool IsActiveTab(IUIAutomationElement tab)
+    {
+        try
+        {
+            var selectionPattern = tab.GetCurrentPattern(UIA_PatternIds.UIA_SelectionItemPatternId) as IUIAutomationSelectionItemPattern;
+            return selectionPattern?.CurrentIsSelected == 1;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }
 
