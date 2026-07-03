@@ -7,13 +7,30 @@ using Microsoft.CommandPalette.Extensions.Toolkit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace WcpBrowserTabs;
 
-internal sealed partial class WcpBrowserTabsPage : DynamicListPage
+internal sealed partial class WcpBrowserTabsPage : ListPage
 {
+    private static readonly TimeSpan MinimumRefreshInterval = TimeSpan.FromSeconds(2);
+
+    private readonly Func<IReadOnlyList<BrowserTab>> getTabs;
+    private readonly object refreshLock = new();
+    private IReadOnlyList<BrowserTab> tabs = [];
+    private DateTimeOffset lastRefreshUtc = DateTimeOffset.MinValue;
+    private Task? refreshTask;
+
     public WcpBrowserTabsPage()
+        : this(BrowserTabDiscoveryService.GetTabs)
     {
+    }
+
+    internal WcpBrowserTabsPage(Func<IReadOnlyList<BrowserTab>> getTabs)
+    {
+        ArgumentNullException.ThrowIfNull(getTabs);
+
+        this.getTabs = getTabs;
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Browser Tabs";
         Name = "Open";
@@ -26,23 +43,19 @@ internal sealed partial class WcpBrowserTabsPage : DynamicListPage
         };
     }
 
-    public override void UpdateSearchText(string oldSearch, string newSearch) => RaiseItemsChanged();
-
     public override IListItem[] GetItems()
     {
-        var searchText = SearchText?.Trim() ?? string.Empty;
-        var matchingTabs = BrowserTabDiscoveryService
-            .GetTabs()
-            .Where(tab => MatchesSearch(tab, searchText))
-            .ToArray();
+        EnsureRefreshStarted();
 
-        if (matchingTabs.Length == 0)
+        var currentTabs = GetTabsSnapshot();
+
+        if (currentTabs.Length == 0)
         {
             return [];
         }
 
-        var items = new List<IListItem>(matchingTabs.Length);
-        foreach (var tab in matchingTabs)
+        var items = new List<IListItem>(currentTabs.Length);
+        foreach (var tab in currentTabs)
         {
             items.Add(new ListItem(new ActivateBrowserTabCommand(tab))
             {
@@ -55,16 +68,60 @@ internal sealed partial class WcpBrowserTabsPage : DynamicListPage
         return [.. items];
     }
 
-    private static bool MatchesSearch(BrowserTab tab, string searchText)
+    private BrowserTab[] GetTabsSnapshot()
     {
-        if (string.IsNullOrWhiteSpace(searchText))
+        lock (refreshLock)
         {
-            return true;
+            return [.. tabs];
+        }
+    }
+
+    private void EnsureRefreshStarted()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        lock (refreshLock)
+        {
+            if (refreshTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            if (lastRefreshUtc != DateTimeOffset.MinValue && now - lastRefreshUtc < MinimumRefreshInterval)
+            {
+                return;
+            }
+
+            IsLoading = true;
+            refreshTask = RefreshTabsAsync();
+        }
+    }
+
+    private async Task RefreshTabsAsync()
+    {
+        IReadOnlyList<BrowserTab>? refreshedTabs = null;
+
+        try
+        {
+            refreshedTabs = await Task.Run(getTabs).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Keep the previous snapshot if discovery fails.
         }
 
-        return tab.TabTitle.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-            tab.WindowTitle.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-            tab.Browser.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+        lock (refreshLock)
+        {
+            if (refreshedTabs is not null)
+            {
+                tabs = refreshedTabs;
+            }
+
+            lastRefreshUtc = DateTimeOffset.UtcNow;
+        }
+
+        IsLoading = false;
+        RaiseItemsChanged();
     }
 
     private static Tag[] GetTags(BrowserTab tab)
