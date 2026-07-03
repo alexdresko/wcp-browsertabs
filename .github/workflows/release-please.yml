@@ -13,11 +13,15 @@ permissions:
 
 concurrency:
   group: release-please-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
 
     steps:
       - name: Run release-please
@@ -29,3 +33,79 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+
+  build-store-bundle:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: windows-2022
+
+    env:
+      APPX_PACKAGE_IDENTITY_NAME: ${{ vars.APPX_PACKAGE_IDENTITY_NAME }}
+      APPX_PACKAGE_PUBLISHER: ${{ secrets.APPX_PACKAGE_PUBLISHER || vars.APPX_PACKAGE_PUBLISHER }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          fetch-depth: 0
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Verify Windows SDK platform
+        shell: pwsh
+        run: |
+          $platformRoot = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
+          $platformXml = Get-ChildItem -Path (Join-Path $platformRoot "*\Platform.xml") -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $platformXml) {
+            Write-Host "Installed UAP SDK platforms:"
+            Get-ChildItem $platformRoot -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw "No Windows SDK UAP Platform.xml file was found under $platformRoot."
+          }
+
+          Write-Host "Using Windows SDK UAP platform: $($platformXml.Directory.Name)"
+
+      - name: Build Store MSIX bundle
+        shell: pwsh
+        run: |
+          $outputFolder = Join-Path "${{ github.workspace }}" "artifacts\release"
+          $packageArgs = @{
+            WorkspaceFolder = "${{ github.workspace }}"
+            Version = "${{ needs.release-please.outputs.version }}.0"
+            OutputFolder = $outputFolder
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_IDENTITY_NAME)) {
+            $packageArgs.IdentityName = $env:APPX_PACKAGE_IDENTITY_NAME
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace($env:APPX_PACKAGE_PUBLISHER)) {
+            $packageArgs.Publisher = $env:APPX_PACKAGE_PUBLISHER
+          }
+
+          & ./scripts/package-store-bundle.ps1 @packageArgs
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-bundle-${{ needs.release-please.outputs.version }}
+          path: |
+            artifacts/release/*.msixbundle
+            artifacts/release/bundle_mapping.txt
+          if-no-files-found: error
+
+      - name: Attach bundle to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/release/*.msixbundle
+            artifacts/release/bundle_mapping.txt
