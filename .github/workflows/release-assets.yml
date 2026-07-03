@@ -66,13 +66,19 @@ jobs:
       - name: Verify Windows SDK platform
         shell: pwsh
         run: |
-          $platformXml = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP\10.0.22621.0\Platform.xml"
-          if (-not (Test-Path $platformXml)) {
+          $platformRoot = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
+          $platformXml = Get-ChildItem -Path (Join-Path $platformRoot "*\Platform.xml") -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $platformXml) {
             Write-Host "Installed UAP SDK platforms:"
-            Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP" -ErrorAction SilentlyContinue |
+            Get-ChildItem $platformRoot -ErrorAction SilentlyContinue |
               Select-Object -ExpandProperty FullName
-            throw "Required Windows SDK UAP platform file not found: $platformXml"
+            throw "No Windows SDK UAP Platform.xml file was found under $platformRoot."
           }
+
+          Write-Host "Using Windows SDK UAP platform: $($platformXml.Directory.Name)"
 
       - name: Build Store MSIX bundle
         shell: pwsh
@@ -107,6 +113,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          fail_on_unmatched_files: true
           files: |
             artifacts/release/*.msixbundle
             artifacts/release/bundle_mapping.txt
